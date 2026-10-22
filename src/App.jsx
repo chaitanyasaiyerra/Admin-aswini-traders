@@ -605,7 +605,7 @@ export default function App() {
             setIsAdminAuthenticated(true);
             showToast('Welcome to Admin Dashboard!');
           }}
-          onBack={() => window.open('http://localhost:5173', '_blank')}
+          onBack={() => window.open('https://aswini-traders.vercel.app', '_blank')}
         />
       ) : (
         <AdminDashboardView
@@ -623,7 +623,7 @@ export default function App() {
           onDeleteProduct={handleDeleteProduct}
           onToggleStock={handleToggleStock}
           inquiries={inquiries}
-          onViewStore={() => window.open('http://localhost:5173', '_blank')}
+          onViewStore={() => window.open('https://aswini-traders.vercel.app', '_blank')}
           onLogout={() => {
             setIsAdminAuthenticated(false);
             showToast('Logged out of Admin Portal', 'info');
@@ -654,7 +654,7 @@ function AdminLoginPageView({ businessSettings, onSuccess, onBack }) {
   // Reads from Vercel/Netlify Environment Variables for each client
   const EXPECTED_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@aswinitraders.com';
   const EXPECTED_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Aswini@2026';
-  const STOREFRONT_URL = import.meta.env.VITE_STOREFRONT_URL || 'http://localhost:5173';
+  const STOREFRONT_URL = import.meta.env.VITE_STOREFRONT_URL || 'https://aswini-traders.vercel.app';
 
   const handleLogin = (e) => {
     e.preventDefault();
