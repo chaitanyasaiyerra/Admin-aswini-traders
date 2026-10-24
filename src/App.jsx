@@ -471,13 +471,67 @@ export default function App() {
     setAdminTab('products');
   };
 
+ // Helper: Finds all images in 'image' & 'gallery' columns and deletes them from Supabase Storage
+  const cleanUpStorageBeforeDelete = async (table, column, value) => {
+    if (!supabase) return;
+    try {
+      // 1. Fetch the rows that are about to be deleted
+      let query = supabase.from(table).select('*');
+      if (table === 'products' && column === 'category') {
+        // Match both category and sub_category when deleting a whole category
+        query = query.or(`category.eq."${value}",sub_category.eq."${value}"`);
+      } else {
+        query = query.eq(column, value);
+      }
+
+      const { data: rows, error } = await query;
+      if (error || !rows || rows.length === 0) return;
+
+      // 2. Collect all image URLs from both 'image' and 'gallery' columns
+      const allUrls = [];
+      rows.forEach((row) => {
+        if (row.image) allUrls.push(row.image);
+        if (Array.isArray(row.gallery)) {
+          allUrls.push(...row.gallery);
+        }
+      });
+
+      // 3. Extract the exact filename inside the 'product-images' bucket (ignores external Unsplash links)
+      const bucketPrefix = '/storage/v1/object/public/product-images/';
+      const filesToRemove = [
+        ...new Set(
+          allUrls
+            .filter((url) => typeof url === 'string' && url.includes(bucketPrefix))
+            .map((url) => decodeURIComponent(url.split(bucketPrefix)[1].split('?')[0]))
+            .filter(Boolean)
+        ),
+      ];
+
+      // 4. Permanently delete the files from Supabase Storage
+      if (filesToRemove.length > 0) {
+        const { error: storageErr } = await supabase.storage
+          .from('product-images')
+          .remove(filesToRemove);
+
+        if (storageErr) {
+          console.error('Error removing images from storage:', storageErr.message);
+        }
+      }
+    } catch (err) {
+      console.error('Storage cleanup error:', err);
+    }
+  };
+
   const handleDeleteProduct = async (productId) => {
     const target = products.find((p) => p.id === productId);
     setProducts((prev) => prev.filter((p) => p.id !== productId));
     if (supabase) {
+      // 1. Delete product images from Supabase Storage first
+      await cleanUpStorageBeforeDelete('products', 'id', productId);
+      // 2. Delete product row from Supabase Database
       await supabase.from('products').delete().eq('id', productId);
     }
-    showToast(`Deleted "${target?.name || productId}" from inventory`, 'info');
+    showToast(`Deleted "${target?.name || productId}" & its images from storage`, 'info');
   };
 
   const handleDeleteCategory = async (cat) => {
@@ -488,7 +542,13 @@ export default function App() {
     );
 
     if (supabase) {
-      // 2. Delete all products in this category from Supabase (checks both category & sub_category)
+      // 2. Clean up all product images inside this category from Supabase Storage
+      await cleanUpStorageBeforeDelete('products', 'category', cat.name);
+
+      // 3. Clean up the category's own cover image from Supabase Storage
+      await cleanUpStorageBeforeDelete('categories', 'id', cat.id);
+
+      // 4. Delete all products in this category from Supabase Database
       const { error: prodErr } = await supabase
         .from('products')
         .delete()
@@ -498,7 +558,7 @@ export default function App() {
         console.error('Error deleting products in category:', prodErr);
       }
 
-      // 3. Delete the category itself from Supabase
+      // 5. Delete the category itself from Supabase Database
       const { error: catErr } = await supabase
         .from('categories')
         .delete()
@@ -511,7 +571,7 @@ export default function App() {
       }
     }
 
-    showToast(`Category "${cat.name}" and all its products deleted!`, 'info');
+    showToast(`Category "${cat.name}", its products, and all storage images deleted!`, 'info');
   };
 
   const handleToggleStock = async (productId) => {
