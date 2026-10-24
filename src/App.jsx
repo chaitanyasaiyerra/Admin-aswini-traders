@@ -783,9 +783,19 @@ function AdminDashboardView({ products, categories, setCategories, onDeleteCateg
   const [adminSearch, setAdminSearch] = useState('');
   const [adminCatFilter, setAdminCatFilter] = useState('All');
 
+ // Finds the highest existing number (e.g. 005) and generates the next one (006)
+  const getNextSku = (productList) => {
+    const maxNum = productList.reduce((max, p) => {
+      const match = String(p.sku || p.id || '').match(/(\d+)$/);
+      const num = match ? parseInt(match[1], 10) : 0;
+      return num > max ? num : max;
+    }, 0);
+    return `AT-SAR-${String(maxNum + 1).padStart(3, '0')}`;
+  };
+
   const emptyForm = {
     name: '',
-    sku: `AT-SAR-${String(products.length + 1).padStart(3, '0')}`,
+    sku: getNextSku(products),
     category: 'Cotton Sarees',
     parentCategory: 'Sarees',
     price: '',
@@ -867,9 +877,9 @@ function AdminDashboardView({ products, categories, setCategories, onDeleteCateg
         specs: { ...emptyForm.specs, ...(editingProduct.specs || {}) }
       });
     } else {
-      setProductForm({ ...emptyForm, sku: `AT-SAR-${String(products.length + 1).padStart(3, '0')}` });
+      setProductForm({ ...emptyForm, sku: getNextSku(products) });
     }
-  }, [editingProduct, products.length]);
+  }, [editingProduct, products]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
