@@ -279,8 +279,32 @@ export default function App() {
   const [toast, setToast] = useState(null);
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-  const [adminTab, setAdminTab] = useState('dashboard');
+  const [adminTab, setAdminTabState] = useState('dashboard');
   const [editingProduct, setEditingProduct] = useState(null);
+
+  // Wrapper function for tab switching that updates browser history
+  const setAdminTab = (tab, pushHistory = true) => {
+    setAdminTabState(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (pushHistory && isAdminAuthenticated) {
+      const stateObj = { adminTab: tab };
+      window.history.pushState(stateObj, '', `#${tab}`);
+    }
+  };
+
+  // Listen to browser Back / Forward buttons in Admin Portal
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state && event.state.adminTab) {
+        setAdminTab(event.state.adminTab, false);
+      } else {
+        setAdminTab('dashboard', false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAdminAuthenticated]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
