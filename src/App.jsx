@@ -702,7 +702,7 @@ export default function App() {
             setIsAdminAuthenticated(true);
             showToast('Welcome to Admin Dashboard!');
           }}
-          onBack={() => window.open('https://aswini-traders.vercel.app', '_blank')}
+          onBack={() => window.open(import.meta.env.VITE_STOREFRONT_URL || 'https://aswini-traders.vercel.app', '_blank')}
         />
       ) : (
         <AdminDashboardView
@@ -720,7 +720,7 @@ export default function App() {
           onDeleteProduct={handleDeleteProduct}
           onToggleStock={handleToggleStock}
           inquiries={inquiries}
-          onViewStore={() => window.open('https://aswini-traders.vercel.app', '_blank')}
+          onViewStore={() => window.open(import.meta.env.VITE_STOREFRONT_URL || 'https://aswini-traders.vercel.app', '_blank')}
           onLogout={async () => {
             if (supabase) await supabase.auth.signOut();
             setIsAdminAuthenticated(false);
