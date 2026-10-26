@@ -282,6 +282,19 @@ export default function App() {
   const [adminTab, setAdminTabState] = useState('dashboard');
   const [editingProduct, setEditingProduct] = useState(null);
 
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAdminAuthenticated(Boolean(session));
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAdminAuthenticated(Boolean(session));
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Wrapper function for tab switching that updates browser history
   const setAdminTab = (tab, pushHistory = true) => {
     setAdminTabState(tab);
@@ -708,7 +721,8 @@ export default function App() {
           onToggleStock={handleToggleStock}
           inquiries={inquiries}
           onViewStore={() => window.open('https://aswini-traders.vercel.app', '_blank')}
-          onLogout={() => {
+          onLogout={async () => {
+            if (supabase) await supabase.auth.signOut();
             setIsAdminAuthenticated(false);
             showToast('Logged out of Admin Portal', 'info');
           }}
@@ -734,22 +748,29 @@ function AdminLoginPageView({ businessSettings, onSuccess, onBack }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Reads from Vercel/Netlify Environment Variables for each client
-  const EXPECTED_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@aswinitraders.com';
-  const EXPECTED_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Aswini@2026';
-  const STOREFRONT_URL = import.meta.env.VITE_STOREFRONT_URL || 'https://aswini-traders.vercel.app';
-
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (
-      email.trim().toLowerCase() !== EXPECTED_EMAIL.toLowerCase() ||
-      password !== EXPECTED_PASSWORD
-    ) {
+    setError('');
+
+    if (!supabase) {
+      setError('Supabase client is not connected. Check your .env file.');
+      return;
+    }
+
+    setLoading(true);
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: password,
+    });
+    setLoading(false);
+
+    if (authError || !data?.session) {
       setError('Invalid administrator email or password.');
       return;
     }
-    setError('');
+
     onSuccess();
   };
 
@@ -788,7 +809,13 @@ function AdminLoginPageView({ businessSettings, onSuccess, onBack }) {
               </button>
             </div>
           </div>
-          <button type="submit" className="w-full py-3 rounded-xl bg-[#650D24] hover:bg-[#4E081B] text-white font-semibold text-sm shadow-md transition-colors cursor-pointer">Login to Dashboard</button>
+         <button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full py-3 rounded-xl bg-[#650D24] hover:bg-[#4E081B] disabled:opacity-60 text-white font-semibold text-sm shadow-md transition-colors cursor-pointer"
+          >
+            {loading ? 'Signing in...' : 'Login to Dashboard'}
+          </button>
         </form>
 
         <div className="mt-5 pt-4 border-t border-[#E5D9C8] flex flex-wrap items-center justify-between gap-2 text-xs text-[#7A685B]">
